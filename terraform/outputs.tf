@@ -1,9 +1,9 @@
-output "cloudfront_domain_url" {
+output "app_url" {
   value       = "https://${aws_cloudfront_distribution.cdn.domain_name}"
-  description = "URL pública de producción provista por CloudFront para el Módulo 4"
+  description = "URL global de producción administrada por CloudFront para acceder al ecosistema (Login + Dashboard)"
 }
 
-output "s3_bucket_id" {
-  value       = aws_s3_bucket.frontend_bucket.id
-  description = "Nombre único del bucket S3 generado en el despliegue"
+output "s3_bucket_name" {
+  value       = aws_s3_bucket.auth_front_bucket.id
+  description = "Nombre del bucket S3 donde se alojan los archivos estáticos index.html, style.css y app.js"
 }

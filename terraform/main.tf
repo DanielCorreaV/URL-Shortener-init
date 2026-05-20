@@ -4,13 +4,13 @@ resource "random_string" "bucket_suffix" {
   upper   = false
 }
 
-resource "aws_s3_bucket" "frontend_bucket" {
-  bucket        = "modulo4-analytics-front-${random_string.bucket_suffix.result}"
-  force_destroy = true 
+resource "aws_s3_bucket" "auth_front_bucket" {
+  bucket        = "url-shortener-init-front-${random_string.bucket_suffix.result}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "block_public" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.auth_front_bucket.id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -19,8 +19,8 @@ resource "aws_s3_bucket_public_access_block" "block_public" {
 }
 
 resource "aws_cloudfront_origin_access_control" "oac" {
-  name                              = "modulo4-analytics-oac-${random_string.bucket_suffix.result}"
-  description                       = "OAC para restringir acceso a S3 excepto desde CloudFront"
+  name                              = "shortener-init-oac-${random_string.bucket_suffix.result}"
+  description                       = "OAC para restringir acceso al S3 de autenticacion y dashboard"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -28,8 +28,8 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
-    domain_name              = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
-    origin_id                = "S3-AnalyticsFrontend"
+    domain_name              = aws_s3_bucket.auth_front_bucket.bucket_regional_domain_name
+    origin_id                = "S3-AuthFrontend"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
 
@@ -40,17 +40,17 @@ resource "aws_cloudfront_distribution" "cdn" {
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-AnalyticsFrontend"
+    target_origin_id = "S3-AuthFrontend"
 
     forwarded_values {
       query_string = false
       cookies { forward = "none" }
     }
 
-    viewer_protocol_policy = "redirect-to-https" 
+    viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
+    default_ttl            = 0 
+    max_ttl                = 0
   }
 
   restrictions {
@@ -65,7 +65,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 }
 
 resource "aws_s3_bucket_policy" "allow_cloudfront" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.auth_front_bucket.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -74,7 +74,7 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
       Effect    = "Allow"
       Principal = { Service = "cloudfront.amazonaws.com" }
       Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.frontend_bucket.arn}/*"
+      Resource  = "${aws_s3_bucket.auth_front_bucket.arn}/*"
       Condition = {
         StringEquals = {
           "AWS:SourceArn" = aws_cloudfront_distribution.cdn.arn
@@ -84,12 +84,12 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
   })
 }
 
-
-resource "aws_s3_object" "upload_frontend_assets" {
-  for_each     = var.website_files
-  bucket       = aws_s3_bucket.frontend_bucket.id
+resource "aws_s3_object" "upload_static" {
+  for_each     = var.frontend_distribution_files
+  bucket       = aws_s3_bucket.auth_front_bucket.id
   key          = each.key
   source       = "${path.module}/../src/${each.key}"
-  content_type = each.value  
-  source_hash = filemd5("${path.module}/../src/${each.key}")
+  content_type = each.value
+  
+  source_hash  = filemd5("${path.module}/../src/${each.key}")
 }

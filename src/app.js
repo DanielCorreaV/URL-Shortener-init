@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.API_BASE_URL;
+const API_BASE_URL = "https://jguawzn6ka.execute-api.us-east-1.amazonaws.com";
 
 let authMode = "login";
 let loadedAssets = [];
@@ -96,7 +96,7 @@ function renderSidebarLinks() {
   const container = document.getElementById("userLinksSidebar");
   container.innerHTML = "";
 
-  if (loadedAssets.length === 0) {
+  if (!loadedAssets || loadedAssets.length === 0) {
     container.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 italic px-2">No tienes códigos generados.</div>`;
     return;
   }
@@ -202,10 +202,10 @@ async function selectAsset(code) {
 
 function copyCurrentShortUrl() {
   if (!selectedCode) return;
-  const targetUrl = `${window.location.origin}/?code=${selectedCode}`;
+  const targetUrl = `${API_BASE_URL}/${selectedCode}`;
   navigator.clipboard
     .writeText(targetUrl)
-    .then(() => alert("¡Copiado al portapapeles!"));
+    .then(() => alert("¡Enlace corto copiado al portapapeles con éxito!"));
 }
 
 function logout() {
